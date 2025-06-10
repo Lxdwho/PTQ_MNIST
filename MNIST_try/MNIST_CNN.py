@@ -5,8 +5,8 @@ from torchvision.datasets import MNIST
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-# device = 'cpu'
+# device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = 'cpu'
 print("Using device:", device)
 
 
@@ -26,9 +26,16 @@ class MYNet(torch.nn.Module):
         # self.mp2 = torch.nn.Conv2d(6, 6, kernel_size=3, stride=3, padding=0, bias=False, groups=1)  # 03 * 03 * 10
         # self.mp3 = torch.nn.Conv2d(6, 10, kernel_size=3, stride=3, padding=0, bias=False, groups=1)  # 01 * 01 * 10
         # 参数量：9*3+9*18+9*60
-        self.cn1 = torch.nn.Conv2d(1, 3, kernel_size=3, stride=3, padding=0, bias=False, groups=1)  # 09 * 09 * 3
-        self.cn2 = torch.nn.Conv2d(3, 6, kernel_size=3, stride=3, padding=0, bias=False, groups=1)  # 03 * 03 * 6
-        self.cn3 = torch.nn.Conv2d(6, 10, kernel_size=3, stride=3, padding=0, bias=False, groups=1)  # 01 * 01 * 10
+        # self.cn1 = torch.nn.Conv2d(1, 3, kernel_size=3, stride=3, padding=0, bias=False, groups=1)  # 09 * 09 * 3
+        # self.cn2 = torch.nn.Conv2d(3, 6, kernel_size=3, stride=3, padding=0, bias=False, groups=1)  # 03 * 03 * 6
+        # self.cn3 = torch.nn.Conv2d(6, 10, kernel_size=3, stride=3, padding=0, bias=False, groups=1)  # 01 * 01 * 10
+        # 深度可分离卷积：9*1+1*3+9*9+1*18+9*36+1*60
+        self.dw1 = torch.nn.Conv2d(1, 1, kernel_size=3, stride=3, padding=0, bias=False, groups=1)  # 09 * 09 * 1
+        self.pw1 = torch.nn.Conv2d(1, 3, kernel_size=1, stride=1, padding=0, bias=False, groups=1)  # 09 * 09 * 3
+        self.dw2 = torch.nn.Conv2d(3, 3, kernel_size=3, stride=3, padding=0, bias=False, groups=3)  # 03 * 03 * 3
+        self.pw2 = torch.nn.Conv2d(3, 6, kernel_size=1, stride=1, padding=0, bias=False, groups=1)  # 03 * 03 * 6
+        self.dw3 = torch.nn.Conv2d(6, 6, kernel_size=3, stride=3, padding=0, bias=False, groups=6)  # 03 * 03 * 6
+        self.pw3 = torch.nn.Conv2d(6, 10, kernel_size=1, stride=1, padding=0, bias=False, groups=1) # 01 * 01 * 10
 
 
     def forward(self, x):
@@ -47,9 +54,14 @@ class MYNet(torch.nn.Module):
         # x = self.mp3(x)
         # x = torch.nn.functional.log_softmax(x.view(-1, 10), dim=1)
 
-        x = torch.nn.functional.relu(self.cn1(x))
-        x = torch.nn.functional.relu(self.cn2(x))
-        x = self.cn3(x)
+        # x = torch.nn.functional.relu(self.cn1(x))
+        # x = torch.nn.functional.relu(self.cn2(x))
+        # x = self.cn3(x)
+        # x = torch.nn.functional.log_softmax(x.view(-1, 10), dim=1)
+
+        x = torch.nn.functional.relu(self.pw1(self.dw1(x)))
+        x = torch.nn.functional.relu(self.pw2(self.dw2(x)))
+        x = torch.nn.functional.relu(self.pw3(self.dw3(x)))
         x = torch.nn.functional.log_softmax(x.view(-1, 10), dim=1)
 
         return x

@@ -139,29 +139,24 @@ save_quantized_weights_txt(qnet)
 
 ### 2.3 权重提取
 
-模型量化完成后需要将**权重、量化参数**进行提取，方便直接部署到FPGA中进行使用，因此需要根据FPGA部署方式进行权重的提取
-
-
-
-
-
-
-
-
+模型量化完成后需要将**权重、量化参数**进行提取，方便直接部署到FPGA中进行使用，因此需要根据FPGA部署方式进行权重的提取，下面是简单的提取权重到txt文本的代码。运行后代码会保存至`dw_quant_weights_txt`文件夹下的`quant_weight.t`文件中。
 
 ```python
 def save_quantized_weights_txt(model, output_dir="dw_quant_weights_txt"):
     os.makedirs(output_dir, exist_ok=True)
+    weight_file = os.path.join(output_dir, f"quant_weight.txt")
+    with open(weight_file, "w") as f:
+        for name, module in model.named_modules():
+            if isinstance(module, torch.nn.quantized.Conv2d):
+                # 获取权重整数表示
+                weight_tensor = module.weight().int_repr().cpu().numpy()
+                shape = weight_tensor.shape  # (out_channels, in_channels, kernel_h, kernel_w)
 
-    for name, module in model.named_modules():
-        if isinstance(module, torch.nn.quantized.Conv2d):
-            # 获取权重整数表示
-            weight_tensor = module.weight().int_repr().cpu().numpy()
-            shape = weight_tensor.shape  # (out_channels, in_channels, kernel_h, kernel_w)
-
-            # 写入权重到 txt 文件
-            weight_file = os.path.join(output_dir, f"{name}_weight.txt")
-            with open(weight_file, "w") as f:
+                f.write(f"\n---------------Quantize Layer {name}---------------\n")
+                # 写入 scale 和 zero_point
+                f.write(f"scale: {module.scale}\n")
+                f.write(f"zero_point: {module.zero_point}\n")
+                # 写入权重
                 f.write(f"# Shape: {shape}\n")
                 for oc in range(shape[0]):
                     for ic in range(shape[1]):
@@ -169,34 +164,37 @@ def save_quantized_weights_txt(model, output_dir="dw_quant_weights_txt"):
                             for kw in range(shape[3]):
                                 val = weight_tensor[oc][ic][kh][kw]
                                 f.write(f"{val} ")
-                        f.write(f"\n")
-
-            # 写入 scale 和 zero_point
-            param_file = os.path.join(output_dir, f"{name}_scale_zeropoint.txt")
-            with open(param_file, "w") as f:
-                f.write(f"scale: {module.scale}\n")
-                f.write(f"zero_point: {module.zero_point}\n")
-        else:
-            if isinstance(module, torch.nn.quantized.modules.Quantize):
-                weight_file = os.path.join(output_dir, f"{name}_weight.txt")
-                with open(weight_file, "w") as f:
-                    f.write(f"Quantize Layer: {name}\n")
+                    f.write(f"\n")
+            else:
+                if isinstance(module, torch.nn.quantized.modules.Quantize):
+                    f.write(f"\n---------------Quantize Layer {name}---------------\n")
                     f.write(f"  Scale: {module.scale.item()}\n")
                     f.write(f"  Zero Point: {module.zero_point.item()}\n")
                     f.write(f"  DType: {module.dtype}\n\n")
-
-    print(f"所有参数已保存到：{output_dir}/")
+    print(f"所有参数已保存到：{weight_file}")
 ```
 
+权重如下：
+
+```tex
+---------------Quantize Layer quant---------------
+  Scale: 0.007874015718698502
+  Zero Point: 0
+  DType: torch.quint8
 
 
+---------------Quantize Layer dw1---------------
+scale: 0.047043610364198685
+zero_point: 0
+# Shape: (1, 1, 3, 3)
+112 32 74 57 25 65 107 33 127 
 
-
-
-
-
-
-
-
-
-
+---------------Quantize Layer pw1---------------
+scale: 0.12646149098873138
+zero_point: 52
+# Shape: (3, 1, 1, 1)
+102 
+-90 
+127 
+......
+```

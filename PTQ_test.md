@@ -176,7 +176,7 @@ def save_quantized_weights_txt(model, output_dir="dw_quant_weights_txt"):
 
 权重如下：
 
-```tex
+```textile
 ---------------Quantize Layer quant---------------
   Scale: 0.007874015718698502
   Zero Point: 0

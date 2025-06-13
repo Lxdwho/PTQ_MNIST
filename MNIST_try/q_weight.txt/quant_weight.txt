@@ -1,0 +1,5 @@
+# Quantize Layer: quant
+# Scale: 0.007874015718698502
+# Zero Point: 0
+# DType: torch.quint8
+
